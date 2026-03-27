@@ -1,6 +1,30 @@
-# typescript-template
+# md2notion
 
-A template for a Typescript repository
+Convert a Markdown file to a Notion page using [@tryfabric/martian](https://github.com/tryfabric/martian) and the [Notion API](https://developers.notion.com/).
+
+## Usage
+
+Set your Notion integration API key as an environment variable:
+
+```bash
+export NOTION_API_KEY=secret_your_notion_api_key
+```
+
+Then run the script with a Markdown file path and a Notion page ID:
+
+```bash
+npm run md2notion -- <path/to/file.md> <notion-page-id>
+```
+
+Example:
+
+```bash
+npm run md2notion -- ./README.md abc123def456...
+```
+
+The script will parse the Markdown file, convert it into Notion blocks, and append them to the specified Notion page.
+
+> **Note:** Your Notion integration must have access to the target page. Share the page with your integration in the Notion UI before running the script.
 
 ## ESLint Setup
 

@@ -1,22 +1,23 @@
 {
-  "name": "typescript-template",
-  "description": "A short project description",
+  "name": "md2notion",
+  "description": "Convert a Markdown file to a Notion page using @tryfabric/martian",
   "version": "0.0.1",
   "private": false,
   "license": "UNLICENSED",
   "type": "module",
   "author": "carlba",
-  "homepage": "https://github.com/carlba/typescript-template",
+  "homepage": "https://github.com/carlba/md2notion",
   "bugs": {
-    "url": "https://github.com/carlba/typescript-template"
+    "url": "https://github.com/carlba/md2notion"
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:carlba/typescript-template"
+    "url": "git@github.com:carlba/md2notion"
   },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
+    "md2notion": "tsx src/md2notion.ts",
     "start:dev": "nodemon -r dotenv/config -q src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest watch",
@@ -38,5 +39,9 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.52.0",
     "vitest": "^4.0.16"
+  },
+  "dependencies": {
+    "@notionhq/client": "^5.15.0",
+    "@tryfabric/martian": "^1.2.4"
   }
 }
