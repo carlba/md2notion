@@ -2,7 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import multer from 'multer';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { existsSync } from 'fs';
+import { dirname, join, resolve } from 'path';
 
 import { md2notionMarkdownContent } from './md2notion-markdown.js';
 
@@ -15,10 +16,15 @@ const upload = multer({ storage: multer.memoryStorage() });
 const PORT = Number(process.env.PORT || 3000);
 const STARTUP_NOTION_API_KEY = (process.env.NOTION_API_KEY || '').trim();
 const STARTUP_DEFAULT_PAGE_ID = (process.env.NOTION_DEFAULT_PAGE_ID || '').trim();
+const WEB_UI_DIR = [join(__dirname, 'webui'), resolve(__dirname, '../src/webui')].find(existsSync);
+
+if (!WEB_UI_DIR) {
+  throw new Error('Unable to find web UI assets. Expected webui under dist or src.');
+}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(join(__dirname, 'webui')));
+app.use(express.static(WEB_UI_DIR));
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });

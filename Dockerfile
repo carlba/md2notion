@@ -19,4 +19,4 @@ RUN npm run build
 VOLUME /mnt /config
 
 # Run the script
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/webui-server.js"]
