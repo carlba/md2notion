@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>md2notion Uploader</title>
+    <style>
+      :root {
+        --bg: #f3efe6;
+        --paper: #fffdf8;
+        --ink: #1f2a37;
+        --muted: #5f6b7a;
+        --accent: #c2410c;
+        --accent-2: #0f766e;
+        --border: #d7d0c3;
+        --ok: #166534;
+        --error: #991b1b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+        background:
+          radial-gradient(circle at 10% 5%, rgba(194, 65, 12, 0.15), transparent 35%),
+          radial-gradient(circle at 90% 95%, rgba(15, 118, 110, 0.12), transparent 30%), var(--bg);
+        min-height: 100vh;
+      }
+
+      .wrap {
+        width: min(900px, calc(100% - 2rem));
+        margin: 2rem auto;
+        background: var(--paper);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1.25rem;
+        box-shadow: 0 12px 30px rgba(31, 42, 55, 0.08);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.4rem, 2vw + 1rem, 2rem);
+        letter-spacing: 0.02em;
+      }
+
+      p {
+        margin: 0.5rem 0 0;
+        color: var(--muted);
+      }
+
+      .grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.9rem;
+      }
+
+      label {
+        font-weight: 600;
+        display: block;
+        margin-bottom: 0.35rem;
+      }
+
+      input[type='text'],
+      input[type='password'],
+      input[type='file'] {
+        width: 100%;
+        padding: 0.7rem;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: white;
+      }
+
+      button {
+        margin-top: 0.25rem;
+        border: none;
+        border-radius: 12px;
+        background: linear-gradient(140deg, var(--accent), #9a3412);
+        color: white;
+        font-weight: 700;
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        transition: transform 0.15s ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .files {
+        margin-top: 0.25rem;
+        max-height: 180px;
+        overflow: auto;
+        border: 1px dashed var(--border);
+        border-radius: 10px;
+        padding: 0.6rem;
+        background: #fffcf6;
+      }
+
+      .files ul {
+        margin: 0;
+        padding-left: 1.1rem;
+      }
+
+      .status {
+        margin-top: 1rem;
+        font-weight: 600;
+      }
+
+      table {
+        width: 100%;
+        margin-top: 0.7rem;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        padding: 0.45rem;
+      }
+
+      .ok {
+        color: var(--ok);
+      }
+
+      .error {
+        color: var(--error);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <h1>Markdown Uploader</h1>
+      <p>Select a folder or specific <code>.md</code> files and upload each as a Notion page.</p>
+
+      <form id="uploadForm" class="grid">
+        <div>
+          <label for="parentPageId">Notion parent page ID (optional)</label>
+          <input id="parentPageId" name="parentPageId" type="text" />
+        </div>
+
+        <div>
+          <label for="apiKey">Notion API key (optional if NOTION_API_KEY is set on server)</label>
+          <input id="apiKey" name="apiKey" type="password" autocomplete="off" />
+        </div>
+
+        <div>
+          <label for="folderInput">Folder with markdown files</label>
+          <input id="folderInput" type="file" webkitdirectory directory multiple />
+        </div>
+
+        <div>
+          <label for="fileInput">Specific markdown files</label>
+          <input id="fileInput" type="file" multiple accept=".md,text/markdown" />
+          <div class="files" id="filesPreview">No markdown files selected.</div>
+        </div>
+
+        <div>
+          <button id="uploadBtn" type="submit" disabled>Upload Markdown Files</button>
+        </div>
+      </form>
+
+      <div class="status" id="status"></div>
+      <div id="result"></div>
+    </main>
+
+    <script>
+      const folderInput = document.getElementById('folderInput');
+      const fileInput = document.getElementById('fileInput');
+      const filesPreview = document.getElementById('filesPreview');
+      const uploadBtn = document.getElementById('uploadBtn');
+      const uploadForm = document.getElementById('uploadForm');
+      const statusEl = document.getElementById('status');
+      const resultEl = document.getElementById('result');
+
+      let folderMarkdownFiles = [];
+      let pickedMarkdownFiles = [];
+      let markdownFiles = [];
+
+      const mergeMarkdownFiles = () => {
+        const byKey = new Map();
+        for (const file of [...folderMarkdownFiles, ...pickedMarkdownFiles]) {
+          const key = file.webkitRelativePath || file.name;
+          if (!byKey.has(key)) byKey.set(key, file);
+        }
+        markdownFiles = Array.from(byKey.values());
+      };
+
+      const renderFiles = () => {
+        if (markdownFiles.length === 0) {
+          filesPreview.textContent = 'No .md files selected.';
+          uploadBtn.disabled = true;
+          return;
+        }
+
+        uploadBtn.disabled = false;
+        const items = markdownFiles
+          .slice(0, 30)
+          .map(file => `<li>${file.webkitRelativePath || file.name}</li>`)
+          .join('');
+        const truncated = markdownFiles.length > 30 ? '<li>...</li>' : '';
+        filesPreview.innerHTML = `<strong>${markdownFiles.length} .md files selected</strong><ul>${items}${truncated}</ul>`;
+      };
+
+      folderInput.addEventListener('change', event => {
+        const allFiles = Array.from(event.target.files || []);
+        folderMarkdownFiles = allFiles.filter(file => file.name.toLowerCase().endsWith('.md'));
+        mergeMarkdownFiles();
+        renderFiles();
+      });
+
+      fileInput.addEventListener('change', event => {
+        const allFiles = Array.from(event.target.files || []);
+        pickedMarkdownFiles = allFiles.filter(file => file.name.toLowerCase().endsWith('.md'));
+        mergeMarkdownFiles();
+        renderFiles();
+      });
+
+      uploadForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        resultEl.innerHTML = '';
+
+        if (markdownFiles.length === 0) {
+          statusEl.textContent = 'Select a folder or specific .md files first.';
+          statusEl.className = 'status error';
+          return;
+        }
+
+        const parentPageId = document.getElementById('parentPageId').value.trim();
+        const apiKey = document.getElementById('apiKey').value.trim();
+
+        uploadBtn.disabled = true;
+        statusEl.textContent = `Uploading ${markdownFiles.length} file(s)...`;
+        statusEl.className = 'status';
+
+        const formData = new FormData();
+        if (parentPageId) formData.append('parentPageId', parentPageId);
+        if (apiKey) formData.append('apiKey', apiKey);
+
+        for (const file of markdownFiles) {
+          formData.append('markdownFiles', file, file.webkitRelativePath || file.name);
+        }
+
+        try {
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || 'Upload failed');
+          }
+
+          const rows = payload.results
+            .map(result => {
+              const cls = result.ok ? 'ok' : 'error';
+              const info = result.ok ? `Page ID: ${result.pageId || 'unknown'}` : result.error;
+              return `<tr><td>${result.fileName}</td><td class="${cls}">${result.ok ? 'OK' : 'FAILED'}</td><td>${info}</td></tr>`;
+            })
+            .join('');
+
+          statusEl.textContent = `Finished: ${payload.successCount} succeeded, ${payload.failedCount} failed.`;
+          statusEl.className = payload.failedCount > 0 ? 'status error' : 'status ok';
+          resultEl.innerHTML = `<table><thead><tr><th>File</th><th>Status</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table>`;
+        } catch (error) {
+          statusEl.textContent = error instanceof Error ? error.message : String(error);
+          statusEl.className = 'status error';
+        } finally {
+          uploadBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

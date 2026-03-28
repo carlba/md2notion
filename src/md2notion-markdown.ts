@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Client, type BlockObjectResponse, type RichTextItemResponse } from '@notionhq/client';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -9,12 +10,14 @@ function readMarkdownFile(filePath: string): string {
 }
 
 /**
- * Create a new Notion page using the markdown parameter so Notion does the parsing.
- * parentPageId should be an existing page ID under which the new page will be created.
+ * Upload markdown content directly to Notion and sanitize resulting blocks.
  */
-export async function md2notionMarkdown(filePath: string, parentPageId: string, apiKey: string) {
+export async function md2notionMarkdownContent(
+  markdown: string,
+  parentPageId: string,
+  apiKey: string
+) {
   const notion = new Client({ auth: apiKey });
-  const markdown = readMarkdownFile(filePath);
 
   const body = {
     parent: { page_id: parentPageId },
@@ -28,9 +31,20 @@ export async function md2notionMarkdown(filePath: string, parentPageId: string, 
   if (createdPageId) {
     await sanitizePageBlocks(notion, createdPageId);
   }
+
+  return createdPageId;
 }
 
-async function sanitizeRichTextArray(rich_text: RichTextItemResponse) {
+/**
+ * Create a new Notion page using the markdown parameter so Notion does the parsing.
+ * parentPageId should be an existing page ID under which the new page will be created.
+ */
+export async function md2notionMarkdown(filePath: string, parentPageId: string, apiKey: string) {
+  const markdown = readMarkdownFile(filePath);
+  return md2notionMarkdownContent(markdown, parentPageId, apiKey);
+}
+
+async function sanitizeRichTextArray(rich_text: RichTextItemResponse[]) {
   if (!Array.isArray(rich_text)) return rich_text;
   return rich_text.map(richText => {
     if (richText && richText.annotations && richText.annotations.code === true) {
@@ -54,7 +68,7 @@ async function sanitizeBlockIfNeeded(notion: Client, block: BlockObjectResponse)
   const updateBody: Record<string, unknown> = {};
   let changed = false;
 
-  function hasRichTextArray(obj: unknown): obj is { rich_text: RichTextItemResponse } {
+  function hasRichTextArray(obj: unknown): obj is { rich_text: RichTextItemResponse[] } {
     return (
       typeof obj === 'object' &&
       obj !== null &&
@@ -104,11 +118,13 @@ async function sanitizePageBlocks(notion: Client, rootBlockId: string) {
 
 // CLI entry
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const [, , filePath, parentPageId] = process.argv;
+  const [, , filePath, parentPageIdArg] = process.argv;
+  const parentPageId = parentPageIdArg || process.env.NOTION_DEFAULT_PAGE_ID;
   const apiKey = process.env.NOTION_API_KEY;
 
   if (!filePath || !parentPageId) {
     console.error('Usage: md2notion-markdown <file.md> <parent-page-id>');
+    console.error('You can also set NOTION_DEFAULT_PAGE_ID in .env.');
     process.exit(1);
   }
   if (!apiKey) {

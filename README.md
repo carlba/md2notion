@@ -1,6 +1,23 @@
 # md2notion
 
-Convert a Markdown file to a Notion page using [@tryfabric/martian](https://github.com/tryfabric/martian) and the [Notion API](https://developers.notion.com/).
+Convert Markdown files to Notion pages using the [Notion API](https://developers.notion.com/).
+
+## Web UI (Folder Upload)
+
+Start the local web UI server:
+
+```bash
+npm run webui
+```
+
+Then open <http://localhost:3000> and:
+
+1. Enter a Notion parent page ID.
+2. Optionally enter a Notion API key (or set `NOTION_API_KEY` in your shell).
+3. Select a folder using the folder picker.
+4. Upload all `.md` files in that folder.
+
+The UI uses the same upload/sanitization logic from `src/md2notion-markdown.ts`.
 
 ## Usage
 
@@ -13,18 +30,16 @@ export NOTION_API_KEY=secret_your_notion_api_key
 Then run the script with a Markdown file path and a Notion page ID:
 
 ```bash
-npm run md2notion -- <path/to/file.md> c
+npm run md2notion:markdown -- <path/to/file.md> <parent-page-id>
 ```
 
 Example:
-v
-
 
 ```bash
-npm run md2notion -- ./README.md abc123def456...
+npm run md2notion:markdown -- ./README.md abc123def456...
 ```
 
-The script will parse the Markdown file, convert it into Notion blocks, and append them to the specified Notion page.
+The script sends markdown to Notion for parsing and then sanitizes rich text annotations on created blocks.
 
 > **Note:** Your Notion integration must have access to the target page. Share the page with your integration in the Notion UI before running the script.
 
