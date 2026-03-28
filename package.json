@@ -18,6 +18,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "md2notion": "tsx src/md2notion.ts",
+    "md2notion:native": "tsx src/md2notion-native.ts",
+    "md2notion:markdown": "tsx src/md2notion-markdown.ts",
     "start:dev": "nodemon -r dotenv/config -q src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest watch",
@@ -41,7 +43,6 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
-    "@notionhq/client": "^5.15.0",
-    "@tryfabric/martian": "^1.2.4"
+    "@notionhq/client": "^5.15.0"
   }
 }

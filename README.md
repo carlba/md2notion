@@ -13,10 +13,12 @@ export NOTION_API_KEY=secret_your_notion_api_key
 Then run the script with a Markdown file path and a Notion page ID:
 
 ```bash
-npm run md2notion -- <path/to/file.md> <notion-page-id>
+npm run md2notion -- <path/to/file.md> c
 ```
 
 Example:
+v
+
 
 ```bash
 npm run md2notion -- ./README.md abc123def456...
