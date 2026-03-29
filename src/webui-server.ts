@@ -13,7 +13,7 @@ const __dirname = dirname(__filename);
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT || 3701);
 const STARTUP_NOTION_API_KEY = (process.env.NOTION_API_KEY || '').trim();
 const STARTUP_DEFAULT_PAGE_ID = (process.env.NOTION_DEFAULT_PAGE_ID || '').trim();
 const WEB_UI_DIR = [join(__dirname, 'webui'), resolve(__dirname, '../src/webui')].find(existsSync);
