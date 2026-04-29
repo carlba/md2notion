@@ -3,6 +3,7 @@ import { Client, type BlockObjectResponse, type RichTextItemResponse } from '@no
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { resolve } from 'path';
+import { config, LOGGER } from './registry.js';
 
 function readMarkdownFile(filePath: string): string {
   const absolutePath = resolve(filePath);
@@ -44,10 +45,10 @@ export async function md2notionMarkdown(filePath: string, parentPageId: string, 
   return md2notionMarkdownContent(markdown, parentPageId, apiKey);
 }
 
-async function sanitizeRichTextArray(rich_text: RichTextItemResponse[]) {
+function sanitizeRichTextArray(rich_text: RichTextItemResponse[]) {
   if (!Array.isArray(rich_text)) return rich_text;
   return rich_text.map(richText => {
-    if (richText && richText.annotations && richText.annotations.code === true) {
+    if (richText?.annotations?.code === true) {
       richText.annotations.color = 'default';
     }
 
@@ -77,7 +78,7 @@ async function sanitizeBlockIfNeeded(notion: Client, block: BlockObjectResponse)
   }
 
   if (hasRichTextArray(content)) {
-    const sanitized = await sanitizeRichTextArray(content.rich_text);
+    const sanitized = sanitizeRichTextArray(content.rich_text);
     updateBody[type] = { rich_text: sanitized };
     changed = true;
   }
@@ -119,21 +120,21 @@ async function sanitizePageBlocks(notion: Client, rootBlockId: string) {
 // CLI entry
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [, , filePath, parentPageIdArg] = process.argv;
-  const parentPageId = parentPageIdArg || process.env.NOTION_DEFAULT_PAGE_ID;
-  const apiKey = process.env.NOTION_API_KEY;
+  const parentPageId = parentPageIdArg || config.NOTION_DEFAULT_PAGE_ID;
+  const apiKey = config.NOTION_API_KEY;
 
   if (!filePath || !parentPageId) {
-    console.error('Usage: md2notion-markdown <file.md> <parent-page-id>');
-    console.error('You can also set NOTION_DEFAULT_PAGE_ID in .env.');
+    LOGGER.error('Usage: md2notion-markdown <file.md> <parent-page-id>');
+    LOGGER.error('You can also set NOTION_DEFAULT_PAGE_ID in .env.');
     process.exit(1);
   }
   if (!apiKey) {
-    console.error('Error: NOTION_API_KEY environment variable is not set.');
+    LOGGER.error('Error: NOTION_API_KEY environment variable is not set.');
     process.exit(1);
   }
 
   md2notionMarkdown(filePath, parentPageId, apiKey).catch((err: unknown) => {
-    console.error('Error:', err instanceof Error ? err.message : String(err));
+    LOGGER.error({ err }, 'Failed to upload markdown to Notion');
     process.exit(1);
   });
 }
