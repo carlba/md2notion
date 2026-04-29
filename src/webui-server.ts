@@ -6,6 +6,7 @@ import { existsSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 
 import { md2notionMarkdownContent } from './md2notion-markdown.js';
+import { config, LOGGER } from './registry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,12 +14,17 @@ const __dirname = dirname(__filename);
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 
-const PORT = Number(process.env.PORT || 3701);
-const STARTUP_NOTION_API_KEY = (process.env.NOTION_API_KEY || '').trim();
-const STARTUP_DEFAULT_PAGE_ID = (process.env.NOTION_DEFAULT_PAGE_ID || '').trim();
+const PORT = config.PORT;
+const STARTUP_NOTION_API_KEY = config.NOTION_API_KEY ?? '';
+const STARTUP_DEFAULT_PAGE_ID = config.NOTION_DEFAULT_PAGE_ID ?? '';
+
+function getStringFormField(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
 const WEB_UI_DIR = [join(__dirname, 'webui'), resolve(__dirname, '../src/webui')].find(existsSync);
 
 if (!WEB_UI_DIR) {
+  LOGGER.fatal('Unable to find web UI assets. Expected webui under dist or src.');
   throw new Error('Unable to find web UI assets. Expected webui under dist or src.');
 }
 
@@ -38,10 +44,12 @@ interface UploadResult {
 }
 
 app.post('/api/upload', upload.array('markdownFiles'), async (req, res) => {
-  const parentPageIdFromForm = String(req.body.parentPageId || '').trim();
-  const parentPageId = parentPageIdFromForm || STARTUP_DEFAULT_PAGE_ID;
-  const apiKeyFromForm = String(req.body.apiKey || '').trim();
-  const apiKey = apiKeyFromForm || STARTUP_NOTION_API_KEY;
+  const body = req.body as Record<string, unknown>;
+  const parentPageIdFromForm = getStringFormField(body.parentPageId);
+  const parentPageId =
+    parentPageIdFromForm.length > 0 ? parentPageIdFromForm : STARTUP_DEFAULT_PAGE_ID;
+  const apiKeyFromForm = getStringFormField(body.apiKey);
+  const apiKey = apiKeyFromForm.length > 0 ? apiKeyFromForm : STARTUP_NOTION_API_KEY;
 
   if (!parentPageId) {
     return res.status(400).json({
@@ -54,7 +62,7 @@ app.post('/api/upload', upload.array('markdownFiles'), async (req, res) => {
       .json({ error: 'apiKey is required (or set NOTION_API_KEY in the environment).' });
   }
 
-  const files = (req.files || []) as Express.Multer.File[];
+  const files = (req.files ?? []) as Express.Multer.File[];
   const markdownFiles = files.filter(file => file.originalname.toLowerCase().endsWith('.md'));
 
   if (markdownFiles.length === 0) {
@@ -78,7 +86,7 @@ app.post('/api/upload', upload.array('markdownFiles'), async (req, res) => {
     }
   }
 
-  const successCount = results.filter(r => r.ok).length;
+  const successCount = results.filter(result => result.ok).length;
   const failedCount = results.length - successCount;
 
   return res.json({
@@ -90,5 +98,5 @@ app.post('/api/upload', upload.array('markdownFiles'), async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`md2notion web UI is running at http://localhost:${PORT}`);
+  LOGGER.info(`md2notion web UI is running at http://localhost:${PORT}`);
 });
