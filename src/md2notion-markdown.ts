@@ -1,9 +1,36 @@
 import 'dotenv/config';
-import { Client, type BlockObjectResponse, type RichTextItemResponse } from '@notionhq/client';
+import {
+  Client,
+  LogLevel,
+  type BlockObjectResponse,
+  type RichTextItemResponse,
+} from '@notionhq/client';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { resolve } from 'path';
 import { config, LOGGER } from './registry.js';
+
+type NotionLogLevel = LogLevel;
+
+function notionLogger(level: NotionLogLevel, message: unknown, extraInfo?: unknown): void {
+  const localLogger = LOGGER.child({ module: 'md2notion-markdown', context: notionLogger.name });
+  switch (level) {
+    case LogLevel.DEBUG:
+      localLogger.debug({ extraInfo }, String(message));
+      break;
+    case LogLevel.INFO:
+      localLogger.info({ extraInfo }, String(message));
+      break;
+    case LogLevel.WARN:
+      localLogger.warn({ extraInfo }, String(message));
+      break;
+    case LogLevel.ERROR:
+      localLogger.error({ extraInfo }, String(message));
+      break;
+    default:
+      localLogger.info({ extraInfo, level }, String(message));
+  }
+}
 
 function readMarkdownFile(filePath: string): string {
   const absolutePath = resolve(filePath);
@@ -18,7 +45,7 @@ export async function md2notionMarkdownContent(
   parentPageId: string,
   apiKey: string
 ) {
-  const notion = new Client({ auth: apiKey });
+  const notion = new Client({ auth: apiKey, logLevel: LogLevel.WARN, logger: notionLogger });
 
   const body = {
     parent: { page_id: parentPageId },
@@ -134,7 +161,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
 
   md2notionMarkdown(filePath, parentPageId, apiKey).catch((err: unknown) => {
-    LOGGER.error({ err }, 'Failed to upload markdown to Notion');
+    const safeError = err instanceof Error ? err : new Error(String(err));
+    LOGGER.error({ err: safeError }, 'Failed to upload markdown to Notion');
     process.exit(1);
   });
 }
